@@ -69,7 +69,7 @@ class Wav2Lip(nn.Module):
             Conv2d(512, 512, kernel_size=1, stride=1, padding=0),)
 
         self.face_decoder_blocks = nn.ModuleList([
-            nn.Sequential(Conv2d(1024, 512, kernel_size=1, stride=1, padding=0),),
+            nn.Sequential(Conv2d(512, 512, kernel_size=1, stride=1, padding=0),),
 
             nn.Sequential(Conv2dTranspose(1024, 512, kernel_size=3, stride=1, padding=0), # 3,3
             Conv2d(512, 512, kernel_size=3, stride=1, padding=1, residual=True),),
