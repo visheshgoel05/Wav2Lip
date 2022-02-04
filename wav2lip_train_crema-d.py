@@ -19,6 +19,8 @@ from glob import glob
 import os, random, cv2, argparse
 from hparams import hparams, get_image_list
 
+os.environ['CUDA_VISIBLE_DEVICES']='2'
+
 parser = argparse.ArgumentParser(description='Code to train the Wav2Lip model without the visual quality discriminator')
 
 parser.add_argument("--data_root", help="Root folder of the preprocessed LRS2 dataset", required=True, type=str)
