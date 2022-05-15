@@ -17,8 +17,12 @@ from tqdm import tqdm
 from glob import glob
 import audio
 from hparams import hparams as hp
-
+import os
 import face_detection
+
+import torch
+torch.cuda.empty_cache()
+os.environ['CUDA_VISIBLE_DEVICES']='4'
 
 parser = argparse.ArgumentParser()
 
@@ -34,6 +38,8 @@ fa = [face_detection.FaceAlignment(face_detection.LandmarksType._2D, flip_input=
 
 template = 'ffmpeg -loglevel panic -y -i {} -strict -2 {}'
 # template2 = 'ffmpeg -hide_banner -loglevel panic -threads 1 -y -i {} -async 1 -ac 1 -vn -acodec pcm_s16le -ar 16000 {}'
+
+
 
 def process_video_file(vfile, args, gpu_id):
 	video_stream = cv2.VideoCapture(vfile)

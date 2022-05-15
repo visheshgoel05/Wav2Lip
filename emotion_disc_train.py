@@ -12,7 +12,7 @@ from sklearn.metrics import accuracy_score
 from torch.utils.tensorboard import SummaryWriter
 
 from models import emo_disc
-from datagen import Dataset
+from datagen_aug import Dataset
 
 def initParams():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -25,13 +25,13 @@ def initParams():
 
     parser.add_argument('--lr_emo', type=float, default=1e-06)
 
-    parser.add_argument("--gpu-no", type=str, help="select gpu", default='1')
+    parser.add_argument("--gpu-no", type=str, help="select gpu", default='3')
     parser.add_argument('--seed', type=int, default=9)
 
     args = parser.parse_args()
 
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_no
-
+    torch.cuda.set_device(3)
     args.batch_size = args.batch_size * max(int(torch.cuda.device_count()), 1)
     args.steplr = 200
 
@@ -85,11 +85,12 @@ def train():
     
     disc_emo = emo_disc.DISCEMO().to(args.device)
     disc_emo.apply(init_weights)
-    disc_emo = nn.DataParallel(disc_emo, device_ids)
+    #disc_emo = nn.DataParallel(disc_emo, device_ids)
 
     emo_loss_disc = nn.CrossEntropyLoss()
 
     num_batches = len(train_loader)
+    print(args.batch_size, num_batches)
 
     global_step = 0
     
@@ -102,7 +103,7 @@ def train():
 
             disc_emo.train()
 
-            disc_emo.module.opt.zero_grad() # .module is because of nn.DataParallel 
+            disc_emo.opt.zero_grad() # .module is because of nn.DataParallel 
 
             class_real = disc_emo(video)
 
@@ -111,7 +112,7 @@ def train():
             running_loss += loss.item()
 
             loss.backward()
-            disc_emo.module.opt.step()
+            disc_emo.opt.step() # .module is because of nn.DataParallel 
 
             if global_step % 1000 == 0:
                 print('Saving the network')
@@ -124,9 +125,9 @@ def train():
 
         writer.add_scalar("classification Loss", running_loss/num_batches, epoch)
         
-        disc_emo.module.scheduler.step()
+        disc_emo.scheduler.step() # .module is because of nn.DataParallel 
 
 if __name__ == "__main__":
 
-    writer = SummaryWriter('runs/emo_disc_exp2')
+    writer = SummaryWriter('runs/emo_disc_exp3')
     train()

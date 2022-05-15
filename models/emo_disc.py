@@ -30,7 +30,7 @@ class DISCEMO(nn.Module):
         self.rnn_1 = nn.LSTM(512, 512, 1, bidirectional=False, batch_first=True)
         
         self.cls = nn.Sequential(
-            nn.Linear(512, 6+1)
+            nn.Linear(512, 8+1)
         )
 
         # Optimizer

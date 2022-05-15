@@ -90,6 +90,8 @@ hparams = HParams(
 	syncnet_eval_interval=500,
 	syncnet_checkpoint_interval=1000,
 
+	pl_wt=0.01,
+	recon_wt=1.5,
     emo_wt=0.001,
 	disc_wt=0.07,
 	disc_initial_learning_rate=1e-4,

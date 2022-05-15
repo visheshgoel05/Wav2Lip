@@ -12,6 +12,7 @@ from torch import optim
 from torch.utils.tensorboard import SummaryWriter
 import torch.backends.cudnn as cudnn
 from torch.utils import data as data_utils
+from torch.distributions import normal
 import numpy as np
 
 from glob import glob
@@ -19,7 +20,7 @@ from glob import glob
 import os, random, cv2, argparse
 from hparams import hparams, get_image_list
 
-os.environ['CUDA_VISIBLE_DEVICES']='2'
+#os.environ['CUDA_VISIBLE_DEVICES']='2'
 
 parser = argparse.ArgumentParser(description='Code to train the Wav2Lip model without the visual quality discriminator')
 
@@ -286,6 +287,16 @@ def train(device, model, train_data_loader, test_data_loader, optimizer,
             gt = gt.to(device) 
             emotion = emotion.to(device)
             
+            
+            
+            # ###Noise embedding changes
+            # noise_embedding = []
+            # for i in range(512):
+            #     noise_embedding.append(normal.Normal(0, 1).sample((80, 512)))
+            # noise_embedding = torch.stack(noise_embedding, 1).to(device)
+            # #print("Size noise", noise_embedding.size())
+            # ###Noise embedding changes
+            
 
             #### training generator/Wav2lip model
             g, emo_label = model(indiv_mels, x, emotion) # emo_label is obtained from audio_encoding
@@ -303,7 +314,12 @@ def train(device, model, train_data_loader, test_data_loader, optimizer,
 
             l1loss = recon_loss(g, gt) # loss 4
 
-            loss = hparams.syncnet_wt * sync_loss + (1 - hparams.syncnet_wt - hparams.emo_wt) * l1loss + hparams.emo_wt * (loss_de_c + emo_loss)
+            #loss = hparams.syncnet_wt * sync_loss + (1 - hparams.syncnet_wt - hparams.emo_wt) * l1loss + hparams.emo_wt * (loss_de_c + emo_loss)
+            # Removing emo loss
+            #loss = hparams.syncnet_wt * sync_loss + (1 - hparams.syncnet_wt - hparams.emo_wt) * l1loss + hparams.emo_wt * (loss_de_c)
+            # Increasing weight of reconstruction loss
+            loss = hparams.syncnet_wt * sync_loss + hparams.recon_wt * l1loss + hparams.emo_wt * (loss_de_c)
+
 
             loss.backward()
             optimizer.step()
@@ -328,7 +344,8 @@ def train(device, model, train_data_loader, test_data_loader, optimizer,
             # fake class
             loss_fake_c = emo_loss_disc(class_fake, (6*torch.ones_like(torch.argmax(emotion, dim=1))).long().to(device))
             loss_real_c = emo_loss_disc(class_real, torch.argmax(emotion, dim=1))
-            loss_disc = 0.5*(loss_fake_c + loss_real_c) 
+            #loss_disc = 0.5*(loss_fake_c + loss_real_c) 
+            loss_disc = 0.5*(loss_real_c) 
             loss_disc.backward()
             disc_emo.opt.step()
 
@@ -361,9 +378,9 @@ def train(device, model, train_data_loader, test_data_loader, optimizer,
                                                                     
         writer.add_scalar("Sync_Loss/train_gen", running_sync_loss/len(train_data_loader), global_epoch)
         writer.add_scalar("L1_Loss/train_gen", running_l1_loss/len(train_data_loader), global_epoch)
-        writer.add_scalar("Emo_Loss/train_gen", running_emo_loss/len(train_data_loader), global_step)
+        #writer.add_scalar("Emo_Loss/train_gen", running_emo_loss/len(train_data_loader), global_step)
         writer.add_scalar("Loss_de_c/train_gen", running_loss_de_c/len(train_data_loader), global_step)
-        writer.add_scalar("Loss_fake_c/train_disc", running_loss_fake_c/len(train_data_loader), global_step)
+        #writer.add_scalar("Loss_fake_c/train_disc", running_loss_fake_c/len(train_data_loader), global_step)
         writer.add_scalar("Loss_real_c/train_disc", running_loss_real_c/len(train_data_loader), global_step)
         global_epoch += 1
         
@@ -386,6 +403,15 @@ def eval_model(test_data_loader, global_step, device, model, checkpoint_dir):
             indiv_mels = indiv_mels.to(device)
             mel = mel.to(device)
             emotion = emotion.to(device)
+
+            # ###Noise embedding changes
+            # noise_embedding = []
+            # for i in range(512):
+            #     noise_embedding.append(normal.Normal(0, 1).sample((80, 512)))
+            # noise_embedding = torch.stack(noise_embedding, 1).to(device)
+            # #print("Size noise", noise_embedding.size())
+            # ###Noise embedding changes
+            
 
             g, emo_label = model(indiv_mels, x, emotion)
 
@@ -426,9 +452,9 @@ def eval_model(test_data_loader, global_step, device, model, checkpoint_dir):
 
                 writer.add_scalar("Sync_Loss/val_gen", averaged_sync_loss, global_step)
                 writer.add_scalar("L1_Loss/val_gen", averaged_recon_loss, global_step)
-                writer.add_scalar("Emo_Loss/val_gen", averaged_emo_loss, global_step)
+                #writer.add_scalar("Emo_Loss/val_gen", averaged_emo_loss, global_step)
                 writer.add_scalar("Loss_de_c/val_gen", averaged_loss_de_c, global_step)
-                writer.add_scalar("Loss_fake_c/val_disc", averaged_loss_fake_c, global_step)
+                #writer.add_scalar("Loss_fake_c/val_disc", averaged_loss_fake_c, global_step)
                 writer.add_scalar("Loss_real_c/val_disc", averaged_loss_real_c, global_step)
 
                 return averaged_sync_loss
@@ -514,7 +540,7 @@ if __name__ == "__main__":
     if not os.path.exists(checkpoint_dir):
         os.mkdir(checkpoint_dir)
 
-    writer = SummaryWriter('runs_emo_2nd_approach/exp1')
+    writer = SummaryWriter('runs_emo_2nd_approach/exp4')
 
     # Train!
     train(device, model, train_data_loader, test_data_loader, optimizer,

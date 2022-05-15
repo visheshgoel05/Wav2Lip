@@ -36,18 +36,18 @@ class Wav2Lip(nn.Module):
             Conv2d(512, 512, kernel_size=1, stride=1, padding=0)),])
 
         self.emotion_encoder = nn.Sequential(
-            nn.Linear(6, 512),
+            nn.Linear(8, 512),
             nn.LeakyReLU(0.2),
-            nn.Linear(512, 512), #changing 512 to 9216 just to concat
+            nn.Linear(512, 512),
             nn.LeakyReLU(0.2)
         )
         
-        self.emotion_rnn = nn.LSTM(512, 512, 2, batch_first=True)
-        self.emo_classifier = nn.Sequential(
-            nn.Linear(512, 512),
-            nn.LeakyReLU(0.2),
-            nn.Linear(512, 6),
-        )
+        # self.emotion_rnn = nn.LSTM(512, 512, 2, batch_first=True)
+        # self.emo_classifier = nn.Sequential(
+        #     nn.Linear(512, 512),
+        #     nn.LeakyReLU(0.2),
+        #     nn.Linear(512, 6),
+        # )
 
         self.audio_encoder = nn.Sequential(
             Conv2d(1, 32, kernel_size=3, stride=1, padding=1),
@@ -102,27 +102,27 @@ class Wav2Lip(nn.Module):
         # audio_sequences = (B, T, 1, 80, 16)
         B = audio_sequences.size(0)
 
-        # emotion = (B, 6)
+        #emotion = (B, 6)
         # repeating the same emotion for every frame
+
+        ###### comment the below line for inference
         #emotion = emotion.unsqueeze(1).repeat(1, 5, 1) #(B, T, 6) 
 
         input_dim_size = len(face_sequences.size())
         if input_dim_size > 4:
             audio_sequences = torch.cat([audio_sequences[:, i] for i in range(audio_sequences.size(1))], dim=0)
+            ###### comment the below line for inference
             #emotion = torch.cat([emotion[:, i] for i in range(emotion.size(1))], dim=0) #(B*T, 6)
+            
             face_sequences = torch.cat([face_sequences[:, :, i] for i in range(face_sequences.size(2))], dim=0)
 
         audio_embedding = self.audio_encoder(audio_sequences) # B*T, 512, 1, 1
-        # emotion_embedding = (self.emotion_encoder(emotion)).unsqueeze(2).unsqueeze(3)) # B*T, 512, 1, 1
         emotion_embedding = self.emotion_encoder(emotion)
-        #print("Size emotion_embedding", emotion_embedding.size())
         
-        emotion_embedding = emotion_embedding.view(-1,512,1,1) # B*T=  80, 512, 1, 1
-        #print("Size2 emotion_embedding", emotion_embedding.size())
+        emotion_embedding = emotion_embedding.view(-1,512,1,1) # B*T, 512, 1, 1
 
-        emo_h, _ = self.emotion_rnn(audio_embedding.view(-1,1,512))
-        emo_label = self.emo_classifier(emo_h[:, -1, :])
-
+        # emo_h, _ = self.emotion_rnn(audio_embedding.view(-1,1,512))
+        # emo_label = self.emo_classifier(emo_h[:, -1, :])
 
         feats = []
         x = face_sequences
@@ -132,7 +132,6 @@ class Wav2Lip(nn.Module):
 
         x = audio_embedding
         x = torch.cat((x, emotion_embedding), dim=1)
-        #print("Size x", x.size())
         for f in self.face_decoder_blocks:
             x = f(x)
             try:
@@ -144,10 +143,7 @@ class Wav2Lip(nn.Module):
             
             feats.pop()
 
-        #x = torch.cat((x, emotion_embedding), dim=1)
         x = self.output_block(x) #(B*T,80,96,96)->(B*5,3,96,96)
-        #print("Size final x", x.size())
-
 
         if input_dim_size > 4:
             x = torch.split(x, B, dim=0) # [(B, C, H, W)]
@@ -156,7 +152,7 @@ class Wav2Lip(nn.Module):
         else:
             outputs = x
         
-        return outputs, emo_label
+        return outputs
 
 
 class Wav2Lip_disc_qual(nn.Module):
